@@ -16,7 +16,7 @@ def index(request):
         response = redirect('index')
         response.set_cookie('anonymous_id', anonymous_id, max_age=60*60*24*30)  # Cookie valid for 30 days
         return response
-    
+
     anonymous_id = request.COOKIES.get('anonymous_id')
 
     if request.method == "POST":
@@ -38,7 +38,7 @@ def index(request):
         request.session['detected_emotion'] = detected_emotion
 
         return redirect('index')
-    
+
     # Fetch mood data for the chart
     if request.user.is_authenticated:
         moods = Mood.objects.filter(user=request.user).order_by('timestamp')  # For authenticated users
@@ -58,23 +58,26 @@ def index(request):
             'angry': 3,
             'anxious': 4,
             'neutral': 1
-        }.get(mood.mood, 0))  # Assign numeric values for mood types
-    
+        }.get(mood.mood.lower(), 0))  # Assign numeric values for mood types, case-insensitive
+
         # Extract detected emotions from notes
         if '[Detected Emotion:' in mood.notes:
-            detected_emotion = mood.notes.split('[Detected Emotion: ')[-1].replace(']', '')
+            try:
+                detected_emotion = mood.notes.split('[Detected Emotion: ')[-1].rstrip('] ').strip()
+            except IndexError:
+                detected_emotion = "N/A"
         else:
             detected_emotion = "N/A"
 
         detected_emotions.append(detected_emotion)
-        
+
     context = {
         'labels': json.dumps(labels),  # Pass labels as JSON
         'mood_values': json.dumps(mood_values),  # Pass mood values as JSON
         'detected_emotions': detected_emotions,
         'mood_data': zip(moods, detected_emotions)
     }
-    
+
     return render(request, 'moodtracker/index.html', context)
 
 def detect_emotion_from_text(text):
